@@ -1,5 +1,3 @@
-# 📚 DBMS Lab & Question Assistant
-
 An AI-powered academic assistant that helps students understand DBMS concepts, answer exam questions, and generate lab-style explanations using Retrieval-Augmented Generation (RAG).
 
 ---
