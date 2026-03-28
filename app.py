@@ -1,4 +1,7 @@
+import os
 import streamlit as st
+from google import genai
+
 from src.file_loader import load_file
 from src.text_chunker import chunk_text_with_metadata
 from src.vector_store import create_vector_store
@@ -6,7 +9,25 @@ from src.retriever import search_chunks
 from src.llm_handler import generate_answer
 from src.question_utils import detect_question_type
 
-st.title("📚 Academic Assistant")
+
+# ---------------- DEBUG TEST FOR DEPLOYMENT ----------------
+api_key = os.getenv("GEMINI_API_KEY")
+st.write("API key loaded:", bool(api_key))
+
+try:
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents="Say hello"
+    )
+    st.success("Gemini works")
+    st.write(response.text)
+except Exception as e:
+    st.error("Gemini failed")
+    st.exception(e)
+
+# ---------------- MAIN APP ----------------
+st.title("Subject Guide Assistant")
 
 uploaded_files = st.file_uploader(
     "Upload your files",
@@ -120,8 +141,8 @@ if uploaded_files:
                         st.write(f"- {source}")
 
                 except Exception as e:
-                    st.error("⚠️ AI is busy right now. Please try again.")
-                    st.caption(str(e))
+                    st.error("Gemini request failed")
+                    st.exception(e)
 
                 with st.expander("Show retrieved chunks"):
                     for i, res in enumerate(results, start=1):
