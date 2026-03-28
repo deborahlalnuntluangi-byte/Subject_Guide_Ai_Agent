@@ -1,6 +1,4 @@
-import os
 import streamlit as st
-from google import genai
 
 from src.file_loader import load_file
 from src.text_chunker import chunk_text_with_metadata
@@ -10,21 +8,7 @@ from src.llm_handler import generate_answer
 from src.question_utils import detect_question_type
 
 
-# ---------------- DEBUG TEST FOR DEPLOYMENT ----------------
-api_key = os.getenv("GEMINI_API_KEY")
-st.write("API key loaded:", bool(api_key))
 
-try:
-    client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents="Say hello"
-    )
-    st.success("Gemini works")
-    st.write(response.text)
-except Exception as e:
-    st.error("Gemini failed")
-    st.exception(e)
 
 # ---------------- MAIN APP ----------------
 st.title("Subject Guide Assistant")
@@ -95,7 +79,7 @@ if uploaded_files:
                 index=index,
                 all_chunks=all_chunks,
                 selected_category=filter_category,
-                k=10
+                k=3
             )
 
             if not results:
@@ -141,6 +125,9 @@ if uploaded_files:
                         st.write(f"- {source}")
 
                 except Exception as e:
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    st.error("⚠️ Daily Gemini free limit reached. Try again later or tomorrow.")
+                else:
                     st.error("Gemini request failed")
                     st.exception(e)
 
