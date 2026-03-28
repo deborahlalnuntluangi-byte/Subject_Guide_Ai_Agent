@@ -1,25 +1,23 @@
 import os
-import time
 from dotenv import load_dotenv
 from google import genai
 
 load_dotenv()
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+api_key = os.getenv("GEMINI_API_KEY")
+client = genai.Client(api_key=api_key)
 
 
 def safe_generate(prompt):
-    for _ in range(3):
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt
-            )
-            return response.text
-        except Exception:
-            time.sleep(2)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash-lite",
+        contents=prompt
+    )
 
-    return "⚠️ AI service is currently busy. Please try again in a few seconds."
+    if not getattr(response, "text", None):
+        raise ValueError("Empty response from Gemini")
+
+    return response.text
 
 
 def generate_answer(query, retrieved_chunks, question_type="general", mode="Exam Mode"):
@@ -36,7 +34,7 @@ Content: {chunk['text']}"""
     context = "\n\n".join(context_parts)
 
     if question_type == "comparison":
-        base_style = "Answer in a clear table format with at least 5–10 comparison points."
+        base_style = "Answer in a clear table format with at least 5 to 10 comparison points."
     elif question_type == "definition":
         base_style = "Start with a clear definition."
     elif question_type == "long":
@@ -72,17 +70,16 @@ STRICT INSTRUCTIONS:
 - Do NOT duplicate sections
 - Answer clearly and only once
 - Use only the provided context
-- Use citations, but mention each source only once per section if possible
 
 If multiple parts:
 - Answer as:
 ## Part 1
 ## Part 2
-... in the same order
+in the same order
 
 If comparison:
 - MUST use table format
-- Include at least 5–10 comparison points
+- Include at least 5 to 10 comparison points
 
 STYLE:
 {style}
