@@ -125,11 +125,11 @@ if uploaded_files:
                         st.write(f"- {source}")
 
                 except Exception as e:
-                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                    st.error("⚠️ Daily Gemini free limit reached. Try again later or tomorrow.")
-                else:
-                    st.error("Gemini request failed")
-                    st.exception(e)
+                    if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                        st.error("⚠️ Daily Gemini free limit reached. Try again later or tomorrow.")
+                    else:
+                        st.error("Gemini request failed")
+                        st.exception(e)
 
                 with st.expander("Show retrieved chunks"):
                     for i, res in enumerate(results, start=1):
