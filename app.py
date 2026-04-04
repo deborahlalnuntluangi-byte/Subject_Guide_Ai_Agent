@@ -8,10 +8,16 @@ from src.llm_handler import generate_answer
 from src.question_utils import detect_question_type
 
 
-
+# ---------------- PAGE CONFIG ----------------
+st.set_page_config(
+    page_title="Subject Guide Assistant",
+    page_icon="📘",
+    layout="wide"
+)
 
 # ---------------- MAIN APP ----------------
-st.title("Subject Guide Assistant")
+st.title("📘 Subject Guide Assistant")
+st.markdown("Upload academic files and get structured AI-generated answers from multiple sources.")
 
 uploaded_files = st.file_uploader(
     "Upload your files",
@@ -29,9 +35,11 @@ filter_category = st.selectbox(
     ["All", "Textbook", "Notes", "Question Paper", "Lab Material"]
 )
 
+
 @st.cache_resource
 def build_index(texts):
     return create_vector_store(texts)
+
 
 file_categories = {}
 
@@ -48,16 +56,17 @@ if uploaded_files:
 if uploaded_files:
     all_chunks = []
 
-    for file in uploaded_files:
-        text = load_file(file)
+    with st.spinner("Processing files and building vector store..."):
+        for file in uploaded_files:
+            text = load_file(file)
 
-        if text.strip() != "":
-            file_chunks = chunk_text_with_metadata(
-                text=text,
-                source=file.name,
-                category=file_categories[file.name]
-            )
-            all_chunks.extend(file_chunks)
+            if text.strip() != "":
+                file_chunks = chunk_text_with_metadata(
+                    text=text,
+                    source=file.name,
+                    category=file_categories[file.name]
+                )
+                all_chunks.extend(file_chunks)
 
     if not all_chunks:
         st.error("Could not extract text from the uploaded files.")
@@ -71,68 +80,80 @@ if uploaded_files:
 
         query = st.text_input("Ask a question:")
 
-        if query:
-            question_type = detect_question_type(query)
-
-            results = search_chunks(
-                query=query,
-                index=index,
-                all_chunks=all_chunks,
-                selected_category=filter_category,
-                k=3
-            )
-
-            if not results:
-                st.warning("No relevant chunks found for the selected category.")
+        if query is not None:
+            if not query.strip():
+                st.warning("Please enter a valid question.")
             else:
-                try:
-                    answer = generate_answer(
+                question_type = detect_question_type(query)
+
+                with st.spinner("Searching relevant sources and generating answer..."):
+                    results = search_chunks(
                         query=query,
-                        retrieved_chunks=results,
-                        question_type=question_type,
-                        mode=mode
+                        index=index,
+                        all_chunks=all_chunks,
+                        selected_category=filter_category,
+                        k=3
                     )
 
-                    st.subheader("AI Answer:")
-                    st.write(answer)
+                if not results:
+                    st.warning("No relevant chunks found for the selected category.")
+                else:
+                    try:
+                        answer = generate_answer(
+                            query=query,
+                            retrieved_chunks=results,
+                            question_type=question_type,
+                            mode=mode
+                        )
 
-                    st.markdown("### 🧠 Answer Type:")
-                    st.write(question_type.upper())
+                        st.subheader("AI Answer")
+                        st.write(answer)
 
-                    st.markdown("### ⚙️ Mode:")
-                    st.write(mode)
+                        col1, col2 = st.columns(2)
 
-                    confidence = min(
-                        100,
-                        int((len(set([r["source"] for r in results])) / 3) * 100)
-                    )
-                    st.markdown(f"**Confidence Score:** {confidence}%")
+                        with col1:
+                            st.markdown("### 🧠 Answer Type")
+                            st.write(question_type.upper())
 
-                    if len(results) < 2:
-                        st.warning("⚠️ Answer may be limited due to low supporting sources.")
+                        with col2:
+                            st.markdown("### ⚙️ Mode")
+                            st.write(mode)
 
-                    st.markdown("### 📚 Sources Used:")
-                    unique_sources = []
-                    seen = set()
+                        confidence = min(100, int((len(results) / 3) * 100))
+                        st.markdown(f"### 📊 Confidence Score: {confidence}%")
 
-                    for res in results:
-                        source_label = f"{res['source']} ({res['category']})"
-                        if source_label not in seen:
-                            seen.add(source_label)
-                            unique_sources.append(source_label)
+                        if len(results) < 2:
+                            st.warning("⚠️ Answer may be limited due to low supporting sources.")
 
-                    for source in unique_sources:
-                        st.write(f"- {source}")
+                        st.markdown("### 📚 Sources Used")
+                        unique_sources = []
+                        seen = set()
 
-                except Exception as e:
-                    if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                        st.error("⚠️ Daily Gemini free limit reached. Try again later or tomorrow.")
-                    else:
-                        st.error("Gemini request failed")
-                        st.exception(e)
+                        for res in results:
+                            source_label = f"{res['source']} ({res['category']})"
+                            if source_label not in seen:
+                                seen.add(source_label)
+                                unique_sources.append(source_label)
 
-                with st.expander("Show retrieved chunks"):
-                    for i, res in enumerate(results, start=1):
-                        st.write(f"### Result {i}")
-                        st.write(res["text"])
-                        st.caption(f"Source: {res['source']} | Category: {res['category']}")
+                        for source in unique_sources:
+                            st.write(f"- {source}")
+
+                        st.markdown("### 🔍 Retrieved Sources Preview")
+                        for i, res in enumerate(results, start=1):
+                            st.write(f"**{i}. {res['source']}** - {res['category']}")
+
+                    except Exception as e:
+                        if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                            st.error("⚠️ Daily Gemini free limit reached. Try again later or tomorrow.")
+                        else:
+                            st.error("Gemini request failed.")
+                            st.exception(e)
+
+                    with st.expander("Show retrieved chunks"):
+                        for i, res in enumerate(results, start=1):
+                            st.write(f"### Result {i}")
+                            st.write(res["text"])
+                            st.caption(f"Source: {res['source']} | Category: {res['category']}")
+
+else:
+    st.info("Please upload at least one PDF, DOCX, or PPTX file to begin.")

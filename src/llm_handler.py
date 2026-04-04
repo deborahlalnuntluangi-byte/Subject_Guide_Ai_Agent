@@ -34,20 +34,49 @@ Content: {chunk['text']}"""
     context = "\n\n".join(context_parts)
 
     if question_type == "comparison":
-        base_style = "Answer in a clear table format with at least 5 to 10 comparison points."
+        base_style = """
+- Answer in table format
+- Give at least 5 to 10 comparison points
+- Add a short summary after the table
+"""
     elif question_type == "definition":
-        base_style = "Start with a clear definition."
+        base_style = """
+- Start with a clear definition
+- Then explain in simple words
+- Add one small example if possible
+- End with a short conclusion
+"""
     elif question_type == "long":
-        base_style = "Give a detailed explanation."
+        base_style = """
+- Give a detailed answer with headings
+- Include definition, explanation, example, and conclusion
+"""
     elif question_type == "lab":
-        base_style = "Explain step-by-step like a lab record."
+        base_style = """
+- Write like a lab record
+- Use headings such as Aim, Theory, Procedure, Result
+"""
     else:
-        base_style = "Give a clear structured explanation."
+        base_style = """
+- Give a clear structured explanation
+- Include definition, explanation, example, and conclusion wherever possible
+"""
 
     if mode == "Exam Mode":
-        style = base_style + " Give full detailed answer with headings."
+        style = """
+Write the answer in exam-friendly format.
+- Use headings and subheadings
+- Explain properly
+- Keep it clear and neat
+- For long answers, make it suitable for 5 to 10 marks
+""" + base_style
     else:
-        style = base_style + " Keep the answer short and direct."
+        style = """
+Write the answer in short and direct format.
+- Keep it simple
+- Avoid unnecessary detail
+- Still maintain clarity
+""" + base_style
 
     questions = [q.strip() for q in query.split("?") if q.strip()]
     multi_question = len(questions) > 1
@@ -64,24 +93,28 @@ Content: {chunk['text']}"""
 You are a Computer Science academic assistant.
 
 STRICT INSTRUCTIONS:
-- Follow the order of questions EXACTLY as given
-- Do NOT change order
-- Do NOT repeat content
-- Do NOT duplicate sections
-- Answer clearly and only once
-- Use only the provided context
+- Use only the given context
+- Follow the order of questions exactly
+- Do not change the order
+- Do not repeat the same point
+- Do not duplicate sections
+- Keep the answer relevant to the asked question
+- Use simple academic English
+- If the context is limited, answer only from the available content and do not invent extra facts
 
-If multiple parts:
-- Answer as:
+IF MULTIPLE PARTS:
+- Answer in this format:
 ## Part 1
 ## Part 2
-in the same order
+## Part 3
+- Keep the same order as the question
 
-If comparison:
-- MUST use table format
-- Include at least 5 to 10 comparison points
+IF COMPARISON QUESTION:
+- Must use table format
+- Must include 5 to 10 comparison points
+- Add a short concluding sentence after the table
 
-STYLE:
+STYLE INSTRUCTIONS:
 {style}
 
 QUESTION:
