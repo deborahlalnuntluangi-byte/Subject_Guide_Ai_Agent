@@ -1,23 +1,9 @@
+# llm_handler.py
 import os
 from dotenv import load_dotenv
-from google import genai
+from src.gemini_client import safe_generate  # ← use shared client
 
 load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key)
-
-
-def safe_generate(prompt):
-    response = client.models.generate_content(
-        model="gemini-2.5-flash-lite",
-        contents=prompt
-    )
-
-    if not getattr(response, "text", None):
-        raise ValueError("Empty response from Gemini")
-
-    return response.text
 
 
 def generate_answer(query, retrieved_chunks, question_type="general", mode="Exam Mode"):
