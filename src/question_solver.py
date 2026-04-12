@@ -1,8 +1,5 @@
-import os
-from dotenv import load_dotenv
-#from google import genai
-from src.gemini_client import safe_generate
 
+from src.gemini_client import safe_generate
 SOLUTION_STYLES = {
     "numerical": """
 - Show step-by-step working
@@ -84,10 +81,7 @@ def solve_question(query: str, chunks: list, mode: str = "Exam Mode") -> dict:
     solution_type = detect_solution_type(query)
     prompt = build_solver_prompt(query, chunks, solution_type, mode)
 
-    solution = safe_generate(prompt)
-
-    if not getattr(solution, "text", None):
-        raise ValueError("Empty response from Gemini")
+    solution = safe_generate(prompt)  # already a plain string
 
     return {
         "solution": solution,
