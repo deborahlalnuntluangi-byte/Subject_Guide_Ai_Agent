@@ -2,20 +2,27 @@ import os
 import time
 from dotenv import load_dotenv
 from google import genai
-from openai import OpenAI
 
 load_dotenv()
 
 gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Only initialize OpenAI if key exists
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai_client = None
+if OPENAI_API_KEY:
+    from openai import OpenAI
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 GEMINI_MODELS = [
     "gemini-2.5-flash",
     "gemini-2.0-flash",
 ]
 
-OPENAI_MODEL = ["gpt-4o-mini",  # fallback
-                "gpt-3.5-turbo"]  # fallback
+OPENAI_MODELS = [
+    "gpt-4o-mini",
+    "gpt-3.5-turbo",
+]
 
 
 def try_gemini(prompt: str) -> str:
@@ -43,54 +50,59 @@ def try_gemini(prompt: str) -> str:
 
 
 def try_openai(prompt: str) -> str:
-    try:
-        response = openai_client.chat.completions.create(
-            model=OPENAI_MODEL,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a Computer Science academic assistant."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            max_tokens=2048,
-            temperature=0.7
-        )
-        return response.choices[0].message.content.strip()
+    if not openai_client:
+        raise RuntimeError("OpenAI key not configured.")
 
-    except Exception as e:
-        err = str(e)
-        if "insufficient_quota" in err.lower():
-            raise RuntimeError(
-                "OpenAI quota exhausted. Check billing at platform.openai.com."
-            ) from e
-        elif "401" in err or "invalid" in err.lower():
-            raise RuntimeError(
-                "Invalid OpenAI API key. Check your .env file."
-            ) from e
-        raise RuntimeError(f"OpenAI error: {err}") from e
+    last_error = None
+
+    for i, model in enumerate(OPENAI_MODELS):  # ← now iterates properly
+        try:
+            response = openai_client.chat.completions.create(
+                model=model,  # ← string not list
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a Computer Science academic assistant."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                max_tokens=2048,
+                temperature=0.7
+            )
+            return response.choices[0].message.content.strip()
+
+        except Exception as e:
+            err = str(e)
+            if "insufficient_quota" in err.lower() or "429" in err:
+                last_error = e
+                if i < len(OPENAI_MODELS) - 1:
+                    time.sleep(2)
+                continue
+            elif "401" in err or "invalid" in err.lower():
+                raise RuntimeError(
+                    "Invalid OpenAI API key. Check your Streamlit secrets."
+                ) from e
+            raise RuntimeError(f"OpenAI error: {err}") from e
+
+    raise RuntimeError("All OpenAI models quota exhausted.") from last_error
 
 
 def safe_generate(prompt: str) -> str:
     # Step 1 — try Gemini first
     try:
-        result = try_gemini(prompt)
-        return result
+        return try_gemini(prompt)
     except RuntimeError as e:
         if "gemini_exhausted" not in str(e):
-            raise  # non-quota Gemini error, surface it
+            raise
 
-    # Step 2 — Gemini failed, fall back to OpenAI
-    try:
-        result = try_openai(prompt)
-        return result
-    except RuntimeError:
-        raise  # OpenAI also failed, surface its error
+    # Step 2 — fall back to OpenAI if available
+    if openai_client:
+        return try_openai(prompt)
 
-    # Step 3 — both failed
+    # Step 3 — both unavailable
     raise RuntimeError(
-        "Both Gemini and OpenAI are unavailable. Try again in a few minutes."
+        "Gemini quota exhausted and no OpenAI key configured. Try again later."
     )
