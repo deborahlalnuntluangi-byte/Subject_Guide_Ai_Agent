@@ -7,10 +7,11 @@ def route_intent(query: str) -> dict:
         "how does", "definition of", "overview of", "what are"
     ]
     solver_keywords = [
-        "solve", "find", "calculate", "write a program",
-        "algorithm", "code", "prove", "derive", "evaluate",
-        "question", "answer", "solution", "implement"
-    ]
+    "solve", "find", "calculate", "write a program",
+    "algorithm", "code", "prove", "derive", "evaluate",
+    "question", "answer", "solution", "implement",
+    "define", "list", "state", "give", "mention"  # ← add these
+]
     learning_keywords = [
         "teach me", "learn", "study", "guide me",
         "step by step", "from scratch", "beginner", "practice",
