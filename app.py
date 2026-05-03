@@ -325,7 +325,7 @@ if st.session_state.index is not None:
                 for i, q in enumerate(st.session_state.quiz_questions):
                     user_ans = user_answers.get(i, "")
                     correct = q["answer"]
-                    is_correct = correct.lower() in str(user_ans).lower()
+                    is_correct = str(user_ans).lower().startswith(correct.lower())
                     results.append({
                         "question": q["question"],
                         "user_answer": user_ans,

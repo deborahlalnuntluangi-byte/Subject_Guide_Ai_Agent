@@ -1,4 +1,5 @@
 from src.gemini_client import safe_generate
+import re
 
 
 def build_quiz_prompt(topic: str, chunks: list, difficulty: str, num_questions: int) -> str:
@@ -11,23 +12,32 @@ def build_quiz_prompt(topic: str, chunks: list, difficulty: str, num_questions: 
 TASK: Generate {num_questions} quiz questions on the topic below.
 DIFFICULTY: {difficulty}
 
-FORMAT EACH QUESTION EXACTLY LIKE THIS:
+FORMAT EACH QUESTION EXACTLY LIKE THIS — DO NOT CHANGE THIS FORMAT:
+
 Q1. [Question text]
 a) Option A
 b) Option B
 c) Option C
 d) Option D
-Answer: [correct option letter]
-Explanation: [one line explanation why this is correct]
+Answer: a
+Explanation: One line explanation here.
 
----
+Q2. [Question text]
+a) Option A
+b) Option B
+c) Option C
+d) Option D
+Answer: b
+Explanation: One line explanation here.
 
-RULES:
-- Generate exactly {num_questions} questions
+STRICT RULES:
+- Generate exactly {num_questions} questions numbered Q1 to Q{num_questions}
+- Always use a) b) c) d) format for options
+- Answer must be just the letter: a, b, c, or d
+- Always include Explanation line
+- Do NOT use --- between questions
+- Do NOT add any extra text before Q1 or after the last question
 - Use ONLY content from the provided sources
-- Make options realistic and tricky
-- Keep difficulty at {difficulty} level
-- Always include Answer and Explanation
 
 TOPIC: {topic}
 
@@ -64,7 +74,9 @@ def generate_quiz(topic: str, chunks: list, difficulty: str = "Medium", num_ques
 
 def parse_quiz(raw_quiz: str) -> list:
     questions = []
-    blocks = raw_quiz.strip().split("---")
+
+    # Split by question number pattern Q1. Q2. Q3. etc
+    blocks = re.split(r'\n(?=Q\d+\.)', raw_quiz.strip())
 
     for block in blocks:
         block = block.strip()
@@ -72,6 +84,7 @@ def parse_quiz(raw_quiz: str) -> list:
             continue
 
         lines = [l.strip() for l in block.split("\n") if l.strip()]
+
         question_data = {
             "question": "",
             "options": [],
@@ -80,12 +93,19 @@ def parse_quiz(raw_quiz: str) -> list:
         }
 
         for line in lines:
-            if line.startswith("Q") and "." in line[:4]:
-                question_data["question"] = line.split(".", 1)[-1].strip()
-            elif line.startswith(("a)", "b)", "c)", "d)")):
+            # Match Q1. Q2. etc
+            if re.match(r'^Q\d+\.', line):
+                question_data["question"] = re.sub(r'^Q\d+\.\s*', '', line).strip()
+
+            # Match a) b) c) d) — also handle a. b. c. d.
+            elif re.match(r'^[a-d][).]', line):
                 question_data["options"].append(line)
+
+            # Match Answer:
             elif line.lower().startswith("answer:"):
-                question_data["answer"] = line.split(":", 1)[-1].strip()
+                question_data["answer"] = line.split(":", 1)[-1].strip().lower()
+
+            # Match Explanation:
             elif line.lower().startswith("explanation:"):
                 question_data["explanation"] = line.split(":", 1)[-1].strip()
 
